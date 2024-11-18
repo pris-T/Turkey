@@ -46,17 +46,17 @@ function create() {
     currentScene = this;
 
     // 设置更大的世界边界
-    this.physics.world.setBounds(0, 0, 8000, 600); // 高度修改为600
+    this.physics.world.setBounds(0, 0, 16000, 600); // 从8000增加到16000
     
     // 调整背景以适应新的世界大小       
     background = this.add.graphics();
     background.fillStyle(0x87CEEB, 1);
-    background.fillRect(0, 0, 8000, 600);
+    background.fillRect(0, 0, 16000, 600);
     
     // 创建更多地面片段
     grounds = this.physics.add.staticGroup();
-    for (var i = 0; i < 20; i++) { // 增加到20个地块
-        var ground = this.add.rectangle(i * 400, groundLevel, 400, 40, 0x228B22).setOrigin(0, 0); // 修改Y坐标为groundLevel
+    for (let i = 0; i < 40; i++) { // 从20增加到40个地块
+        const ground = this.add.rectangle(i * 400, groundLevel, 400, 40, 0x228B22).setOrigin(0, 0);
         this.physics.add.existing(ground, true);
         grounds.add(ground);
     }
@@ -83,7 +83,7 @@ function create() {
     obstacles.add(startObstacle);
 
     // 设置相机边界
-    this.cameras.main.setBounds(0, 0, 8000, 600);
+    this.cameras.main.setBounds(0, 0, 16000, 600);
     this.cameras.main.startFollow(player, true, 0.5, 0.5);
 
     // 添加玩家与地面的碰撞
@@ -94,9 +94,9 @@ function create() {
     const obstaclePositions = [];
     
     // 生成随机间距的障碍物位置
-    while (currentPos < 8000 - 300) { // 预留最后800像素的空间
+    while (currentPos < 16000 - 800) { // 预留最后800像素的空间
         obstaclePositions.push(currentPos);
-        // 随机间距，最小300，最大800  
+        // 随机间距，最小80，最大300
         const spacing = Phaser.Math.Between(80, 300);
         currentPos += spacing;   
     }
@@ -116,7 +116,7 @@ function create() {
     // 创建障碍物和奖励物
     obstaclePositions.forEach(function (posX, index) {
         // 随机决定是否为棕色障碍物，保持1:2的比例
-        const isBrown = Math.random() < 0.40; // 40%的概率是棕色
+        const isBrown = Math.random() < 0.33; // 33%的概率是棕色
         const color = isBrown ? 0x8B4513 : 0x228B22; // 棕色或绿色
 
         // 随机尺寸（但不超过玩家的70%）
@@ -129,7 +129,7 @@ function create() {
         let posY;
         if (isOnGround) {
             // 放在地面上
-            posY = groundLevel - height; // 地面Y坐标是groundLevel
+            posY = groundLevel - height;
         } else {
             // 随机高度位置
             const minY = 260; // 玩家可达到的最高位置
@@ -142,7 +142,7 @@ function create() {
         obstacle.body.setVelocityX(-150);
         obstacle.body.setAllowGravity(false);
         obstacle.body.setImmovable(true);
-        obstacle.isBrown = isBrown; // 标记障碍物类型
+        obstacle.isBrown = isBrown;
         obstacles.add(obstacle);
 
         // 随机决定是否在这个障碍物附近创建奖励物（50%概率）
@@ -150,14 +150,14 @@ function create() {
             // 在障碍物x坐标附近随机位置（±100像素内）
             const bonusX = posX + Phaser.Math.Between(-100, 100);
             // 随机高度，但要在玩家可达范围内 
-            const bonusY = Phaser.Math.Between(260, groundLevel - 30); // 奖励物高度为30（直径）
+            const bonusY = Phaser.Math.Between(260, groundLevel - 30);
             
             // 创建黄色圆形奖励物
             const bonus = this.add.circle(bonusX, bonusY, 15, 0xFFFF00);
             this.physics.add.existing(bonus);
             bonus.body.setAllowGravity(false);
             bonus.body.setImmovable(true);
-            bonus.body.setVelocityX(-150); // 与障碍物相同的速度
+            bonus.body.setVelocityX(-150);
             bonuses.add(bonus);
         }
     }, this);
@@ -241,22 +241,20 @@ function update() {
 
     // 更新障碍物循环逻辑
     obstacles.children.iterate(function (obstacle) {
-        // 根据相机视图来判断是否需要重置位置
         if (obstacle.x + obstacle.width < this.cameras.main.scrollX) {
-            obstacle.x += 8000; // 调整为新的世界宽度
+            obstacle.x += 16000; // 调整为新的世界宽度
         } else if (obstacle.x > this.cameras.main.scrollX + 800) {
-            obstacle.x -= 8000; // 调整为新的世界宽度
+            obstacle.x -= 16000; // 调整为新的世界宽度
         }
     }, this);
 
     // 更新奖励物循环逻辑
     bonuses.children.iterate(function (bonus) {
-        if (bonus) {  // 确保奖励物存在
-            // 根据相机视图来判断是否需要重置位置
+        if (bonus) {
             if (bonus.x + bonus.width < this.cameras.main.scrollX) {
-                bonus.x += 8000; // 调整为新的世界宽度
+                bonus.x += 16000; // 调整为新的世界宽度
             } else if (bonus.x > this.cameras.main.scrollX + 800) {
-                bonus.x -= 8000; // 调整为新的世界宽度
+                bonus.x -= 16000; // 调整为新的世界宽度
             }
         }
     }, this);
