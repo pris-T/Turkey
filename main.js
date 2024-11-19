@@ -270,6 +270,9 @@ function update() {
 }
 
 function hitObstacle(player, obstacle) {
+    // 如果玩家处于无敌状态，直接返回
+    if (player.isInvulnerable) return;
+
     if (obstacle.isBrown) {
         // 检查是否还有爱心可以移除
         if (heart2 && heart2.active) {
@@ -293,6 +296,7 @@ function hitObstacle(player, obstacle) {
         // 在碰撞后立即返回，防止多次处理
         return;
     } else {
+        // 绿色障碍物处理
         score = Math.max(0, score - 100);
         updateScore();
         
@@ -302,6 +306,15 @@ function hitObstacle(player, obstacle) {
         } else {
             player.direction = 'left';
         }
+
+        // 添加短暂无敌时间
+        player.alpha = 0.6;  // 半透明表示受伤
+        player.isInvulnerable = true;  // 标记为无敌状态
+        
+        currentScene.time.delayedCall(600, () => {  // 使用500毫秒的无敌时间
+            player.alpha = 1;  // 恢复正常
+            player.isInvulnerable = false;  // 移除无敌状态
+        });
     }
 }
 
@@ -362,8 +375,10 @@ function checkWinCondition() {
             fontSize: '64px',
             fill: '#fff',
             fontFamily: 'Arial',
-            backgroundColor: '#000',
             padding: { x: 20, y: 10 }
+        });
+        currentScene.time.delayedCall(1500, () => {
+            congratsText.destroy();
         });
         congratsText.setScrollFactor(0);
         congratsText.setOrigin(0.5);
