@@ -1,5 +1,7 @@
 // main.js
 
+const playerSpeed = 100; // 全局常量，玩家移动速度
+
 const config = {
     type: Phaser.AUTO,
     width: 800,     // 游戏画布宽度
@@ -8,25 +10,26 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 1000 }, // 设置重力
-            debug: false          // 是否开启调试模式
+            debug: true          // 改为 true
         }
     },
     scene: {
         preload: preload,
         create: create,
-        update: update
+        update: update 
     }
 };
 
 const game = new Phaser.Game(config);
 
+// 所有全局变量声明
 let player;
 let cursors;
 let grounds;
 let obstacles;
 let background;
 let jumpCount = 0; // 跳跃次数计数器
-const maxJumpHeight = 300;  // 最大离地高度
+const maxJumpHeight = 300;  // 最大离地高度 
 const groundLevel = 560;   // 地面的Y坐标，修改为560
 let bonuses;  // 奖励物组
 let scoreText;
@@ -38,7 +41,9 @@ let gameOver = false;
 let currentScene; // 添加这个变量来存储场景引用
 
 function preload() {
-    // 不需要加载任何资源
+    // 加载视频
+    this.load.video('playerVideo', 'assets/Run.webm', 'loadeddata', false, true);
+    this.load.video('jumpVideo', 'assets/Jump.webm', 'loadeddata', false, true);
 }
 
 function create() {
@@ -46,7 +51,16 @@ function create() {
     currentScene = this;
 
     // 设置更大的世界边界
-    this.physics.world.setBounds(0, 0, 16000, 600); // 从8000增加到16000
+    this.physics.world.setBounds(0, 0, 16000, 600);
+    
+    // 创建左侧墙壁
+    const wallWidth = 40;  // 墙壁宽度
+    const wallHeight = 600;  // 墙壁高度
+    const leftWall = this.add.rectangle(0, 0, wallWidth, wallHeight, 0x228B22)
+        .setOrigin(0, 0);
+    
+    // 添加物理属性
+    this.physics.add.existing(leftWall, true); // true表示静态物体
     
     // 调整背景以适应新的世界大小       
     background = this.add.graphics();
@@ -67,20 +81,45 @@ function create() {
         immovable: true
     });
 
-    // 创建玩家
-    player = this.add.rectangle(100, groundLevel - 60, 40, 60, 0xff0000); // 修改Y坐标
-    this.physics.add.existing(player);
-    player.body.setCollideWorldBounds(true);
-    player.direction = 'right';
-    player.isInvulnerable = false;  // 初始化无敌状态为false
+    // 创建视频精灵
+    const video = this.add.video(100, groundLevel - 25, 'playerVideo');
+    const jumpVideo = this.add.video(100, groundLevel - 25, 'jumpVideo');
+    
+    // 设置视频属性 - 保持原有数值
+    video.setScale(40/video.width, 50/video.height);
+    jumpVideo.setScale(40/jumpVideo.width, 50/jumpVideo.height);
+    
+    video.play(true);
+    jumpVideo.play(true);
+    jumpVideo.setVisible(false);
+    
+    // 设置物理属性
+    this.physics.add.existing(video);
+    video.body.setCollideWorldBounds(true);
 
-    // 在玩家左侧创建固定的绿色障碍物
-    var startObstacle = this.add.rectangle(50, groundLevel - 80, 40, 80, 0x228B22); // 修改Y坐标
-    this.physics.add.existing(startObstacle);
-    startObstacle.body.setAllowGravity(false);
-    startObstacle.body.setImmovable(true);
-    startObstacle.isBrown = false;
-    obstacles.add(startObstacle);
+    // 调整碰撞箱大小和偏移 - 保持原有数值
+    video.body.setSize(500, 500);
+    video.body.setOffset(150, 230);
+    
+    // 调整物理属性 
+    video.body.setBounce(0);
+    video.body.setDragX(0);
+    video.body.setMass(1);
+    
+    // 保存引用
+    player = video;
+    player.jumpVideo = jumpVideo;
+    player.direction = 'right';
+
+    // 添加调试代码
+    console.log('Video loaded:', {
+        width: video.width,
+        height: video.height,
+        duration: video.duration,
+        isPlaying: video.isPlaying()
+    });
+
+    
 
     // 设置相机边界
     this.cameras.main.setBounds(0, 0, 16000, 600);
@@ -97,9 +136,9 @@ function create() {
     while (currentPos < 16000 - 800) { // 预留最后800像素的空间
         obstaclePositions.push(currentPos);
         // 随机间距，最小80，最大300
-        const spacing = Phaser.Math.Between(80, 300);
+        const spacing = Phaser.Math.Between(90, 300);
         currentPos += spacing;   
-    }
+    }  
     
     // 玩家的尺寸
     const playerWidth = 40;
@@ -120,8 +159,8 @@ function create() {
         const color = isBrown ? 0x8B4513 : 0x228B22; // 棕色或绿色
 
         // 随机尺寸（但不超过玩家的70%）
-        const width = Phaser.Math.Between(20, maxObstacleWidth);
-        const height = Phaser.Math.Between(20, maxObstacleHeight);
+        const width = Phaser.Math.Between(playerWidth * 0.5, playerWidth * 0.8);
+        const height = Phaser.Math.Between(playerHeight * 0.5, playerHeight * 0.8);
 
         // 决定是否放置在地面上（65%的概率）
         const isOnGround = Math.random() < 0.65;
@@ -162,7 +201,7 @@ function create() {
         }
     }, this);
 
-    // 在所有障碍物创建完成后，再调用日志函数
+    // 在所障碍物创建完成后，再调用日志函数
     logObstaclePositions.call(this);
 
     // 添加玩家与障碍物的碰撞检测
@@ -209,24 +248,58 @@ function create() {
     // 将爱心添加到组中
     hearts.add(heart1);
     hearts.add(heart2);
+
+    // 现在添加玩家与墙壁的碰撞
+    this.physics.add.collider(player, leftWall, () => {
+        player.direction = 'right';
+    });
 }
 
 function update() {
     if (gameOver) return; // 如果游戏结束，不再更新
 
+    // 确保视频在播放
+    if (!player.isPlaying()) {
+        player.play(true);
+    }
+    if (!player.jumpVideo.isPlaying()) {
+        player.jumpVideo.play(true);
+    }
+
+    // 同步跳跃动画的位置和翻转状态
+    player.jumpVideo.x = player.x;
+    player.jumpVideo.y = player.y;
+    player.jumpVideo.setFlipX(player.flipX);
+
+    // 根据方向翻转视频
+    if (player.direction === 'left') {
+        player.setFlipX(true);
+        player.jumpVideo.setFlipX(true);
+        player.body.setVelocityX(-playerSpeed);
+    } else {
+        player.setFlipX(false);
+        player.jumpVideo.setFlipX(false);
+        player.body.setVelocityX(playerSpeed);
+    }
+
     // 在地面时重置跳跃次数
     if (player.body.blocked.down) {
         jumpCount = 0;
+        // 确保在地面时显示跑步动画
+        player.setVisible(true);
+        player.jumpVideo.setVisible(false);
     }
 
     // 检测跳跃输入
     if (Phaser.Input.Keyboard.JustDown(cursors.space)) {
         if (jumpCount < 2) {
+            // 切换到跳跃动画
+            player.setVisible(false);
+            player.jumpVideo.setVisible(true);
+            
             if (jumpCount == 0) {
-                // 第一次跳跃，跳150像素
                 player.body.setVelocityY(-550);
             } else if (jumpCount == 1) {
-                // 第二次跳跃，总共跳300像素
                 player.body.setVelocityY(-775);      
             }
             jumpCount++;
@@ -248,7 +321,7 @@ function update() {
         }
     }, this);
 
-    // 更新奖励物循环逻辑
+    // 更新奖励物循环逻
     bonuses.children.iterate(function (bonus) {
         if (bonus) {
             if (bonus.x + bonus.width < this.cameras.main.scrollX) {
@@ -259,18 +332,12 @@ function update() {
         }
     }, this);
 
-    // 控制玩家自动移动
-    const playerSpeed = 100; // 降低玩家速度
-
-    if (player.direction === 'left') {
-        player.body.setVelocityX(-playerSpeed);
-    } else {
-        player.body.setVelocityX(playerSpeed);
-    }
+    // 添加这行来显示碰撞箱（仅调试用）
+    // this.physics.world.drawDebug = true;
 }
 
 function hitObstacle(player, obstacle) {
-    if (obstacle.isBrown) {
+    if (obstacle.isBrown && !player.isInvulnerable) {
         // 检查是否还有爱心可以移除
         if (heart2 && heart2.active) {
             // 如果第二个心还在，移除它
@@ -281,13 +348,13 @@ function hitObstacle(player, obstacle) {
             endGame();
         }
 
-        // 给玩家一个短暂的无敌时间，防止连续碰撞
-        player.alpha = 0.5;  // 半透明表示受伤
-        player.isInvulnerable = true;  // 标记为无敌状态
+        // 受伤时不要暂停视频
+        player.alpha = 0.5;
+        player.isInvulnerable = true;
         
         currentScene.time.delayedCall(1000, () => {
-            player.alpha = 1;  // 1秒后恢复正常
-            player.isInvulnerable = false;  // 移除无敌状态
+            player.alpha = 1;
+            player.isInvulnerable = false;
         });
 
         // 在碰撞后立即返回，防止多次处理
@@ -305,7 +372,7 @@ function hitObstacle(player, obstacle) {
     }
 }
 
-// 收集奖励物的函数
+// 收奖励物的函数
 function collectBonus(player, bonus) {
     // 移除奖励物
     bonus.destroy();
