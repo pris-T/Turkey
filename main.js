@@ -5,11 +5,11 @@ const playerSpeed = 100; // 全局常量，玩家移动速度
 const config = {
     type: Phaser.AUTO,
     width: 800,     // 游戏画布宽度
-    height: 600,    // 修改为600
-    physics: {
+    height: 500,    // 修改为600
+    physics: {  
         default: 'arcade',
         arcade: {
-            gravity: { y: 1000 }, // 设置重力
+            gravity: { y: 400 }, // 从1000降低到800
             debug: true          // 改为 true
         }
     },
@@ -40,12 +40,37 @@ let heart2;
 let gameOver = false;
 let currentScene; // 添加这个变量来存储场景引用
 
+// 创建奖励物分数配置
+const BONUS_SCORES = {
+    'prop1': 2000,  // 蛋糕 2000分
+    'prop2': 1000,  // 甜甜圈 1000分
+    'prop3': 1500   // 纸杯蛋糕 1500分
+};
+
 function preload() {
     // 加载视频
     this.load.video('playerVideo', 'assets/Run.webm', 'loadeddata', false, true);
     this.load.video('jumpVideo', 'assets/Jump.webm', 'loadeddata', false, true);
+    
     // 加载背景图片
-    this.load.image('background', 'assets/background.jpg');
+    this.load.image('background', 'assets/background.png');
+    
+    // 加载障碍物图片
+    this.load.image('obs1', 'assets/obs1.png');  // 黄色锅
+    this.load.image('obs2', 'assets/obs2.png');  // 蓝色锅
+    this.load.image('obs3', 'assets/obs3.png');  // 平底锅
+    this.load.image('knife', 'assets/knife.png'); // 添加刀的图片
+    
+    // 加载道具图片
+    this.load.image('prop1', 'assets/prop1.png');  // 蛋糕
+    this.load.image('prop2', 'assets/prop2.png');  // 甜甜圈
+    this.load.image('prop3', 'assets/prop3.png');  // 纸杯蛋糕
+    
+    // 加载冰箱图片
+    this.load.image('refrig', 'assets/refrig.png');  // 冰箱
+    
+    // 加载地面图片
+    this.load.image('floor', 'assets/floor.png');
 }
 
 function create() {
@@ -63,22 +88,24 @@ function create() {
     
     // 添加物理属性
     this.physics.add.existing(leftWall, true); // true表示静态物体
-    // 添加背景图片
-    const bg = this.add.image(0, 0, 'background')
+    
+    // 添加背景图片 - 使用 TileSprite 替代普通 Image
+    const bg = this.add.tileSprite(0, -50, 16000, 700, 'background') 
         .setOrigin(0, 0)
-        .setScrollFactor(0);
+        .setScrollFactor(0.3); // 设置视差效果
     
     // 调整背景图片大小以适应屏幕
-    bg.setDisplaySize(800, 600);
-    // 移除或注释掉原来的背景绘制代码
-    // background = this.add.graphics();
-    // background.fillStyle(0x87CEEB, 1);
-    // background.fillRect(0, 0, 16000, 600);
+    bg.setDisplaySize(16000, 600);
     
     // 创建更多地面片段
     grounds = this.physics.add.staticGroup();
-    for (let i = 0; i < 40; i++) { // 从20增加到40个地块
-        const ground = this.add.rectangle(i * 400, groundLevel, 400, 40, 0x228B22).setOrigin(0, 0);
+    for (let i = 0; i < 40; i++) {
+        const ground = this.add.sprite(i * 400, groundLevel, 'floor')
+            .setOrigin(0, 0);
+        
+        // 调整地面图片大小
+        ground.setDisplaySize(400, 40);
+        
         this.physics.add.existing(ground, true);
         grounds.add(ground);
     }
@@ -144,7 +171,7 @@ function create() {
     while (currentPos < 16000 - 800) { // 预留最后800像素的空间
         obstaclePositions.push(currentPos);
         // 随机间距，最小80，最大300
-        const spacing = Phaser.Math.Between(90, 300);
+        const spacing = Phaser.Math.Between(120, 350);
         currentPos += spacing;   
     }  
     
@@ -154,6 +181,9 @@ function create() {
     const maxObstacleWidth = playerWidth * 0.7;
     const maxObstacleHeight = playerHeight * 0.7;
 
+    // 创建道具图片数组
+    const propImages = ['prop1', 'prop2', 'prop3'];
+    
     // 创建奖励物组
     bonuses = this.physics.add.group({
         allowGravity: false,
@@ -164,7 +194,6 @@ function create() {
     obstaclePositions.forEach(function (posX, index) {
         // 随机决定是否为棕色障碍物，保持1:2的比例
         const isBrown = Math.random() < 0.33; // 33%的概率是棕色
-        const color = isBrown ? 0x8B4513 : 0x228B22; // 棕色或绿色
 
         // 随机尺寸（但不超过玩家的70%）
         const width = Phaser.Math.Between(playerWidth * 0.5, playerWidth * 0.8);
@@ -184,7 +213,18 @@ function create() {
             posY = Phaser.Math.Between(minY, maxY); 
         }
 
-        const obstacle = this.add.rectangle(posX, posY, width, height, color);
+        let obstacle;
+        if (isBrown) {
+            // 棕色障碍物使用刀的图片
+            obstacle = this.add.sprite(posX, posY, 'knife');
+            obstacle.setScale(0.1); // 调整刀的大小，根据实际图片大小调整这个值
+        } else {
+            // 绿色障碍物使用随机图片
+            const randomObs = Phaser.Math.RND.pick(['obs1', 'obs2', 'obs3']);
+            obstacle = this.add.sprite(posX, posY, randomObs);
+            obstacle.setScale(0.1);
+        }
+        
         this.physics.add.existing(obstacle);
         obstacle.body.setVelocityX(-150);
         obstacle.body.setAllowGravity(false);
@@ -199,17 +239,24 @@ function create() {
             // 随机高度，但要在玩家可达范围内 
             const bonusY = Phaser.Math.Between(260, groundLevel - 30);
             
-            // 创建黄色圆形奖励物
-            const bonus = this.add.circle(bonusX, bonusY, 15, 0xFFFF00);
+            // 随机选择一个道具图片
+            const randomProp = Phaser.Math.RND.pick(propImages);
+            
+            // 创建奖励物精灵（使用随机选择的图片）
+            const bonus = this.add.sprite(bonusX, bonusY, randomProp);
             this.physics.add.existing(bonus);
             bonus.body.setAllowGravity(false);
             bonus.body.setImmovable(true);
             bonus.body.setVelocityX(-150);
+            
+            // 调整大小（根据需要调整缩放值）
+            bonus.setScale(0.1);
+            
             bonuses.add(bonus);
         }
     }, this);
 
-    // 在所障碍物创建完成后，再调用日志函数
+    // 在障碍物创建完成后，再调用日志函数
     logObstaclePositions.call(this);
 
     // 添加玩家与障碍物的碰撞检测
@@ -226,7 +273,7 @@ function create() {
     cursors = this.input.keyboard.createCursorKeys();
 
     // 创建计分板
-    scoreText = this.add.text(700, 16, '0', { 
+    scoreText = this.add.text(600, 16, '0', { 
         fontSize: '32px', 
         fill: '#fff',
         fontFamily: 'Arial'
@@ -301,14 +348,13 @@ function update() {
     // 检测跳跃输入
     if (Phaser.Input.Keyboard.JustDown(cursors.space)) {
         if (jumpCount < 2) {
-            // 切换到跳跃动画
             player.setVisible(false);
             player.jumpVideo.setVisible(true);
             
             if (jumpCount == 0) {
-                player.body.setVelocityY(-550);
+                player.body.setVelocityY(-400);
             } else if (jumpCount == 1) {
-                player.body.setVelocityY(-775);      
+                player.body.setVelocityY(-1000);      
             }
             jumpCount++;
         }
@@ -342,6 +388,14 @@ function update() {
 
     // 添加这行来显示碰撞箱（仅调试用）
     // this.physics.world.drawDebug = true;
+
+    // 可以在这里添加额外的背景滚动效果（可选）
+    // bg.tilePositionX = this.cameras.main.scrollX * 0.3;
+
+    // 检查是否到达地图最右端
+    if (player.x >= 15900) { // 16000 - 100(留一些余量)
+        gameWin();
+    }
 }
 
 function hitObstacle(player, obstacle) {
@@ -394,20 +448,83 @@ function hitObstacle(player, obstacle) {
 
 // 收奖励物的函数
 function collectBonus(player, bonus) {
-    // 移除奖励物
-    bonus.destroy();
+    // 如果奖励物已经被收集过，直接返回
+    if (bonus.isCollected) return;
     
-    // 增加分数
-    score += 1000;
+    // 标记奖励物已被收集
+    bonus.isCollected = true;
+    
+    // 添加消失动画
+    this.tweens.add({
+        targets: bonus,
+        alpha: 0,
+        scale: 1.2,
+        duration: 200,
+        onComplete: () => {
+            bonus.destroy();
+        }
+    });
+    
+    // 固定加1000分
+    const scoreToAdd = 1000;
+    score += scoreToAdd;
+    
+    // 显示飘分效果
+    const scoreText = this.add.text(bonus.x, bonus.y, `+${scoreToAdd}`, {
+        fontSize: '24px',
+        fill: '#fff',
+        stroke: '#000',
+        strokeThickness: 4
+    });
+    
+    // 添加飘分动画
+    this.tweens.add({
+        targets: scoreText,
+        y: bonus.y - 50,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => {
+            scoreText.destroy();
+        } 
+    });
+    
+    // 更新分数显示
+    function updateScore() {
+        scoreText.setText(score.toString());
+    }
     updateScore();
     
-    // 检查是否达到胜利条件
-    checkWinCondition();
+    // 检查特殊分数节点
+    checkSpecialScores();
+}
+
+// 检查特殊分数节点
+function checkSpecialScores() {
+    const specialScores = [6666, 8888, 12222];
+    
+    if (specialScores.includes(score)) {
+        // 创建贺文本
+        const congratsText = currentScene.add.text(400, 300, 'Congratulations!', {
+            fontSize: '64px',
+            fill: '#fff',
+            fontFamily: 'Arial',
+            backgroundColor: '#000',
+            padding: { x: 20, y: 10 }
+        });
+        congratsText.setScrollFactor(0);
+        congratsText.setOrigin(0.5);
+        congratsText.setDepth(2);
+        
+        // 1秒后移除文本
+        currentScene.time.delayedCall(1000, () => {
+            congratsText.destroy();
+        });
+    }
 }
 
 function logObstaclePositions() {
     console.log('地图障碍物位置:');
-    console.log('绿色障碍物:');
+    console.log('绿障碍物:');
     obstacles.children.iterate(function(obstacle) {
         if (!obstacle.isBrown) {
             console.log(`x: ${Math.round(obstacle.x)}, y: ${Math.round(obstacle.y)}`);
@@ -441,34 +558,119 @@ function checkJumpHeight(player) {
 function updateScore() {
     scoreText.setText(score.toString());
 }
-
-// 检查胜利条件
-function checkWinCondition() {
-    if (score >= 6666 && !gameOver) {
-        const congratsText = currentScene.add.text(400, 300, 'Congratulations!', {
-            fontSize: '64px',
-            fill: '#fff',
-            fontFamily: 'Arial',
-            backgroundColor: '#000',
-            padding: { x: 20, y: 10 }
-        });
-        congratsText.setScrollFactor(0);
-        congratsText.setOrigin(0.5);
-        congratsText.setDepth(2);
-    }
+// 添加胜利函数
+function gameWin() {
+    gameOver = true;
+    
+    // 创建半透明白色背景
+    const overlay = currentScene.add.rectangle(0, 0, 800, 500, 0xffffff, 0.8)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(9);
+    
+    // 显示胜利文本
+    const winText = currentScene.add.text(400, 200, '恭喜通关！', {
+        fontSize: '64px',
+        fill: '#000',
+        fontFamily: 'Arial',
+        padding: { x: 20, y: 10 }
+    })
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setDepth(10);
+    
+    // 显示最终分数
+    const finalScore = currentScene.add.text(400, 300, `最终得分: ${score}`, {
+        fontSize: '32px',
+        fill: '#000',
+        fontFamily: 'Arial'
+    })
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setDepth(10);
+    
+    // 创建重新开始按钮
+    const restartButton = currentScene.add.text(400, 380, '重新开始', {
+        fontSize: '28px',
+        fill: '#fff',
+        backgroundColor: '#000',
+        padding: { x: 20, y: 10 }
+    })
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setDepth(10)
+    .setInteractive({ useHandCursor: true });
+    
+    // 添加按钮悬停效果
+    restartButton.on('pointerover', () => {
+        restartButton.setStyle({ fill: '#ff0' });
+    });
+    
+    restartButton.on('pointerout', () => {
+        restartButton.setStyle({ fill: '#fff' });
+    });
+    
+    // 添加点击事件
+    restartButton.on('pointerdown', () => {
+        location.reload();
+    });
 }
 
 // 游戏结束函数
 function endGame() {
     gameOver = true;
     currentScene.physics.pause();
-    player.fillColor = 0x000000;
-    const gameOverText = currentScene.add.text(400, 300, '游戏结束', { 
-        fontSize: '32px', 
-        fill: '#fff',
+    
+    // 创建半透明白色背景
+    const overlay = currentScene.add.rectangle(0, 0, 800, 500, 0xffffff, 0.8)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(9);
+    
+    // 显示游戏结束文本
+    const gameOverText = currentScene.add.text(400, 200, '游戏结束', {
+        fontSize: '64px',
+        fill: '#000',
         fontFamily: 'Arial'
+    })
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setDepth(10);
+    
+    // 显示最终分数
+    const finalScore = currentScene.add.text(400, 300, `最终得分: ${score}`, {
+        fontSize: '32px',
+        fill: '#000',
+        fontFamily: 'Arial'
+    })
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setDepth(10);
+    
+    // 创建重新开始按钮
+    const restartButton = currentScene.add.text(400, 380, '重新开始', {
+        fontSize: '28px',
+        fill: '#fff',
+        backgroundColor: '#000',
+        padding: { x: 20, y: 10 }
+    })
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setDepth(10)
+    .setInteractive({ useHandCursor: true });
+    
+    // 添加按钮悬停效果
+    restartButton.on('pointerover', () => {
+        restartButton.setStyle({ fill: '#ff0' });
     });
-    gameOverText.setScrollFactor(0);
-    gameOverText.setOrigin(0.5);
-    gameOverText.setDepth(2);
+    
+    restartButton.on('pointerout', () => {
+        restartButton.setStyle({ fill: '#fff' });
+    });
+    
+    // 添加点击事件
+    restartButton.on('pointerdown', () => {
+        location.reload();
+    });
 }
+
