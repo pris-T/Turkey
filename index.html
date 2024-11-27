@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Little Turkey Adventure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+        }
+        #startScreen {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background: url('assets/background.png') no-repeat center center;
+            background-size: cover;
+        }
+        #startScreen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        #logo {
+            position: absolute;
+            left: 50%;
+            top: 65%;
+            transform: translate(-50%, -50%) translateY(-60px);
+            width: auto;
+            height: 400px;
+            z-index: 1;
+        }
+        #startBtn {
+            position: absolute;
+            left: 50%;
+            top: 70%;
+            transform: translate(-50%, -50%) translateY(60px);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1;
+        }
+        #startBtn img {
+            width: auto;
+            height: 80px;
+            transition: transform 0.1s;
+        }
+        #startBtn:hover img {
+            transform: scale(1.1);
+        }
+        #gameContainer {
+            display: none;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <img id="logo" src="assets/logo.png" alt="Logo">
+        <button id="startBtn">
+            <img src="assets/start.png" alt="Start">
+        </button>
+    </div>
+    <div id="gameContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+    <script>
+        document.getElementById('startBtn').addEventListener('click', function() {
+            const btnImg = this.querySelector('img');
+            // 按钮放大并晃动动画
+            btnImg.style.transform = 'scale(1.1) rotate(-5deg)';
+            setTimeout(() => {
+                btnImg.style.transform = 'scale(1.1) rotate(5deg)';
+                setTimeout(() => {
+                    btnImg.style.transform = 'scale(1.1) rotate(0deg)';
+                    setTimeout(() => {
+                        // 隐藏开始页面
+                        document.getElementById('startScreen').style.display = 'none';
+                        // 显示游戏容器
+                        document.getElementById('gameContainer').style.display = 'block';
+                        // 加载游戏脚本
+                        const script = document.createElement('script');
+                        script.src = 'main.js';
+                        document.body.appendChild(script);
+                    }, 100);
+                }, 100);
+            }, 100);
+        });
+    </script>
+</body>
+</html>
